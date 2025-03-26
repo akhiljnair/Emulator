@@ -25,13 +25,15 @@ jobs:
           tenant-id: ${{ secrets.D365_TENANT_ID }}
           environment-url: ${{ secrets.D365_URL }}
 
-      - name: Export Unmanaged Solution
-        uses: microsoft/powerplatform-actions/export-solution@v1.8.0
-        with:
-          environment-url: ${{ secrets.D365_URL }}
-          solution-name: ${{ inputs.solution-name }}
-          solution-output-file: ./artifacts/${{ inputs.solution-name }}.zip
-          managed: false  # Export as unmanaged
+      - name: Pack Solution from Unpacked Files
+        run: |
+          # Set variables
+          SOLUTION_NAME=${{ inputs.solution-name }}
+          SOLUTION_DIR=./solution/${SOLUTION_NAME}
+          OUTPUT_FILE=./artifacts/${SOLUTION_NAME}.zip
+
+          # Pack solution using pac command (assuming the unpacked files are in the solution directory)
+          pac solution pack --path $SOLUTION_DIR --zipfile $OUTPUT_FILE --managed false
 
       - name: Upload Solution Artifact
         uses: actions/upload-artifact@v4
