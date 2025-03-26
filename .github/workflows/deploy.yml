@@ -1,0 +1,52 @@
+name: Reusable D365 Deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment-url:
+        description: "D365 Environment URL"
+        required: true
+        type: string
+      solution-name:
+        description: "D365 Solution Name"
+        required: true
+        type: string
+      solution-file:
+        description: "Artifact name containing solution ZIP"
+        required: true
+        type: string
+      managed:
+        description: "Deploy as managed (true/false)"
+        required: true
+        type: boolean
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Power Platform Auth
+        uses: microsoft/powerplatform-actions/authenticate@v1.8.0
+        with:
+          client-id: ${{ secrets.D365_CLIENT_ID }}
+          client-secret: ${{ secrets.D365_CLIENT_SECRET }}
+          tenant-id: ${{ secrets.D365_TENANT_ID }}
+          environment-url: ${{ inputs.environment-url }}
+
+      - name: Download Solution Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.solution-file }}
+          path: ./artifacts
+
+      - name: Import Solution
+        uses: microsoft/powerplatform-actions/import-solution@v1.8.0
+        with:
+          environment-url: ${{ inputs.environment-url }}
+          solution-input-file: ./artifacts/${{ inputs.solution-name }}.zip
+          force-overwrite: true
+          publish-changes: true
+          managed: ${{ inputs.managed }}
