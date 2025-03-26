@@ -1,14 +1,12 @@
 name: D365 Solution CI/CD Pipeline
 
 on:
-  push:
-    branches:
-      - main
-      - uat
-  pull_request:
-    branches:
-      - main
-      - uat
+  workflow_dispatch:
+    inputs:
+      solution-name:
+        description: "Enter the D365 Solution Name"
+        required: true
+        type: string
 
 jobs:
   build:
@@ -31,78 +29,32 @@ jobs:
         uses: microsoft/powerplatform-actions/export-solution@v1.8.0
         with:
           environment-url: ${{ secrets.D365_URL }}
-          solution-name: YourSolutionName
-          solution-output-file: ./artifacts/YourSolution.zip
+          solution-name: ${{ inputs.solution-name }}
+          solution-output-file: ./artifacts/${{ inputs.solution-name }}.zip
           managed: false  # Export as unmanaged
 
       - name: Upload Solution Artifact
         uses: actions/upload-artifact@v4
         with:
           name: d365-solution
-          path: ./artifacts/YourSolution.zip
+          path: ./artifacts/${{ inputs.solution-name }}.zip
 
-  uat:
+  deploy-uat:
     name: Deploy to UAT
-    runs-on: windows-latest
     needs: build
-    if: github.ref == 'refs/heads/uat'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment-url: ${{ secrets.D365_URL }}
+      solution-name: ${{ inputs.solution-name }}
+      solution-file: d365-solution
+      managed: true
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download Solution Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: d365-solution
-          path: ./artifacts
-
-      - name: Power Platform Auth
-        uses: microsoft/powerplatform-actions/authenticate@v1.8.0
-        with:
-          client-id: ${{ secrets.D365_CLIENT_ID }}
-          client-secret: ${{ secrets.D365_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.D365_TENANT_ID }}
-          environment-url: ${{ secrets.D365_URL }}
-
-      - name: Import Solution to UAT (Managed)
-        uses: microsoft/powerplatform-actions/import-solution@v1.8.0
-        with:
-          environment-url: ${{ secrets.D365_URL }}
-          solution-input-file: ./artifacts/YourSolution.zip
-          force-overwrite: true
-          publish-changes: true
-          managed: true  # Import as managed
-
-  production:
+  deploy-prod:
     name: Deploy to Production
-    runs-on: windows-latest
-    needs: uat
-    if: github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download Solution Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: d365-solution
-          path: ./artifacts
-
-      - name: Power Platform Auth
-        uses: microsoft/powerplatform-actions/authenticate@v1.8.0
-        with:
-          client-id: ${{ secrets.D365_CLIENT_ID }}
-          client-secret: ${{ secrets.D365_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.D365_TENANT_ID }}
-          environment-url: ${{ secrets.D365_URL }}
-
-      - name: Import Solution to Production (Managed)
-        uses: microsoft/powerplatform-actions/import-solution@v1.8.0
-        with:
-          environment-url: ${{ secrets.D365_URL }}
-          solution-input-file: ./artifacts/YourSolution.zip
-          force-overwrite: true
-          publish-changes: true
-          managed: true  # Import as managed
+    needs: deploy-uat
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment-url: ${{ secrets.D365_URL }}
+      solution-name: ${{ inputs.solution-name }}
+      solution-file: d365-solution
+      managed: true
