@@ -42,19 +42,39 @@ jobs:
   deploy-uat:
     name: Deploy to UAT
     needs: build
-    uses: ./.github/workflows/deploy.yml
-    with:
-      environment-url: ${{ secrets.D365_URL }}
-      solution-name: ${{ inputs.solution-name }}
-      solution-file: d365-solution
-      managed: true
+    if: github.ref == 'refs/heads/uat'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Request approval before UAT deployment
+        uses: ridedott/approve-action@v1
+        with:
+          approvers: 'team-uat'  # Specify the GitHub team or individual for approval
+
+      - name: Deploy to UAT
+        uses: ./.github/workflows/deploy.yml
+        with:
+          environment-url: ${{ secrets.D365_URL }}
+          solution-name: ${{ inputs.solution-name }}
+          solution-file: d365-solution
+          managed: true
 
   deploy-prod:
     name: Deploy to Production
     needs: deploy-uat
-    uses: ./.github/workflows/deploy.yml
-    with:
-      environment-url: ${{ secrets.D365_URL }}
-      solution-name: ${{ inputs.solution-name }}
-      solution-file: d365-solution
-      managed: true
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Request approval before Production deployment
+        uses: ridedott/approve-action@v1
+        with:
+          approvers: 'team-prod'  # Specify the GitHub team or individual for approval
+
+      - name: Deploy to Production
+        uses: ./.github/workflows/deploy.yml
+        with:
+          environment-url: ${{ secrets.D365_URL }}
+          solution-name: ${{ inputs.solution-name }}
+          solution-file: d365-solution
+          managed: true
